@@ -1,0 +1,7 @@
+name = "IKTO SEO"
+description = "Provides some SEO adjustments"
+package = "IKTO"
+core = 7.x
+version = 7.x-1.x
+
+configure = admin/config/search/ikto-seo

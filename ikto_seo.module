@@ -1,0 +1,111 @@
+<?php
+
+/**
+ * Implements hook_menu().
+ */
+function ikto_seo_menu() {
+  $items['admin/config/search/ikto-seo'] = array(
+    'type' => MENU_NORMAL_ITEM,
+    'title' => 'IKTO SEO',
+    'description' => 'Configure SEO adjustments',
+    'page callback' => 'drupal_get_form',
+    'page arguments' => array('ikto_seo_admin_settings_form'),
+    'access arguments' => array('administer site configuration'),
+    'file' => 'ikto_seo.admin.inc',
+  );
+
+  return $items;
+}
+
+/**
+ * Implements hook_boot().
+ */
+function ikto_seo_boot() {
+  ikto_seo_request_path($_GET['q']);
+}
+
+/**
+ * Implements hook_language_init().
+ */
+function ikto_seo_language_init() {
+  ikto_seo_request_path($_GET['q']);
+}
+
+/**
+ * Implements hook_init().
+ */
+function ikto_seo_init() {
+
+  // Disable redirecting if request method is not GET
+  if ($_SERVER['REQUEST_METHOD'] != 'GET') {
+    return;
+  }
+
+  if (user_access('bypass ikto seo redirects')) {
+    return;
+  }
+
+  if (variable_get('ikto_seo_redirect_home')) {
+    if (drupal_is_front_page() && (ikto_seo_request_path() != '')) {
+      ikto_seo_redirect('<front>');
+    }
+  }
+
+  if (variable_get('ikto_seo_redirect_internal_path')) {
+    $path_alias = drupal_get_path_alias(current_path());
+    if ($path_alias && ($path_alias != ikto_seo_request_path()) && ($path_alias != current_path())) {
+      ikto_seo_redirect(current_path());
+    }
+  }
+}
+
+/**
+ * Implements hook_permission().
+ */
+function ikto_seo_permission() {
+  return array(
+    'bypass ikto seo redirects' => array(
+      'title' => t('Bypass redirects'),
+    ),
+  );
+}
+
+function ikto_seo_redirect($path) {
+  if (variable_get('ikto_seo_use_redirect') && module_exists('redirect')) {
+    $redirect = new stdClass();
+    $redirect->redirect = $path;
+    $redirect->redirect_options = array();
+    $redirect->status_code = 301;
+
+    redirect_redirect($redirect);
+  }
+  else {
+    drupal_goto($path, array(), 301);
+  }
+}
+
+function ikto_seo_request_path($path = NULL) {
+  $drupal_static_fast = &drupal_static(__FUNCTION__);
+
+  $path_stored = &$drupal_static_fast['path'];
+
+  if (($path !== NULL) && ($path !== FALSE)) {
+    $path_stored = $path;
+  }
+
+  return $path_stored;
+}
+
+function ikto_seo_get_internal_path_redirect_example() {
+  $query = db_select('url_alias', 'ua');
+  $query->fields('ua', array('source', 'alias'));
+  $query->condition('language', 'und');
+  $query->range(0, 1);
+  $result = $query->execute();
+
+  if ($row = $result->fetchAssoc()) {
+    return $row;
+  }
+
+  return NULL;
+}
